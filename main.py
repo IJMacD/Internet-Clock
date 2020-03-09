@@ -1,6 +1,8 @@
-import max7219
 from machine import Pin, SPI, I2C
-import time, network
+import time, network, micropython, gc
+import max7219
+
+gc.collect()
 
 # Available pins
 # 0, 2, 4, 5, 12, 13, 14, 15, and 16
@@ -14,7 +16,9 @@ import time, network
 spi = SPI(-1, baudrate=100000, polarity=1, phase=0, sck=Pin(2), mosi=Pin(4), miso=Pin(16))
 display = max7219.Matrix8x8(spi, Pin(5), 5)
 
-import BME280
+from BME280_min import BME280
+
+gc.collect()
 
 # ESP8266 - Pin assignment
 i2c = I2C(scl=Pin(14), sda=Pin(12), freq=10000)
@@ -24,25 +28,28 @@ hum=0
 pres=0
 
 def read_temp ():
-    global temp, hum, pres
-    bme = BME280.BME280(i2c=i2c)
-    temp = bme.temperature
-    hum = bme.humidity
-    pres = bme.pressure
+	global temp, hum, pres
+	bme = BME280(i2c=i2c)
+	temp = bme.temperature
+	hum = bme.humidity
+	pres = bme.pressure
 
 display.brightness(0)
 
-def led_print(msg):
-    display.fill(0)
-    display.text(msg,0,0,1)
-    display.show()
+def led_print(msg, narrow=False):
+	display.fill(0)
+	if len(msg) > 5 or narrow:
+		display.narrowtext(msg, 0, 1)
+	else:
+		display.text(msg,0,0,1)
+	display.show()
 
 led_print("Hello")
 
 wlan = network.WLAN(network.STA_IF)
 
 while not wlan.isconnected():
-    time.sleep_ms(100)
+	time.sleep_ms(100)
 
 from machine import RTC
 
@@ -60,49 +67,57 @@ from machine import Timer
 # tmr_t.init(period=30*60*1000, mode=Timer.PERIODIC, callback=lambda t: ntptime.settime())
 
 def print_time():
-    utc = rtc.datetime()    # get the date and time in UTC
+	utc = rtc.datetime()	# get the date and time in UTC
 
-    tz = 8
+	tz = 8
 
-    utc_hours = utc[4]
+	utc_hours = utc[4]
 
-    hours = (utc_hours + tz) % 24
-    minutes = utc[5]
-    seconds = utc[6]
-        
-    led_print('%02d%s%02d' % (hours,(":" if seconds%2 else " "),minutes))
-    
+	hours = (utc_hours + tz) % 24
+	minutes = utc[5]
+	seconds = utc[6]
+		
+	led_print('%02d%s%02d' % (hours,(":" if seconds%2 else " "),minutes))
+	
 def print_temp():
-    read_temp()
-    led_print(temp)
-    
+	read_temp()
+	led_print(temp)
+	
 def print_hum():
-    read_temp()
-    led_print(hum)
-    
+	read_temp()
+	led_print(hum)
+	
 def print_pres():
-    read_temp()
-    led_print(pres)
+	read_temp()
+	led_print(pres)
 
 msg = None
 # count = 0
 
 def update_display (t):
-    if msg == None:
-        print_time()
-    elif msg == "temp":
-        print_temp()
-    elif msg == "humidity":
-        print_hum()
-    elif msg == "pressure":
-        print_pres()
-    else:
-        led_print(msg)
-    
-    # count = count + 1
-    
-    # if count > 30 * 60:
-        # ntptime.settime()
+	if msg == None:
+		print_time()
+	elif msg == "temp":
+		print_temp()
+	elif msg == "humidity":
+		print_hum()
+	elif msg == "pressure":
+		print_pres()
+	elif msg == "cycle":
+		s = int(rtc.datetime()[6] / 10)
+		if s in [0,1,3,4]:
+			print_time()
+		elif s == 2:
+			print_temp()
+		else:
+			print_pres()
+	else:
+		led_print(msg)
+	
+	# count = count + 1
+	
+	# if count > 30 * 60:
+		# ntptime.settime()
 
 tmr = Timer(-1)
 tmr.init(period=1000, mode=Timer.PERIODIC, callback=update_display)
@@ -115,25 +130,25 @@ s.listen(1)
 # s.settimeout(0.1)
 
 def check_conn(t):
-    global msg
-    try:
-        cl, addr = s.accept()
-        bytes = cl.readline()
-        msg = bytes.decode('utf-8')[:-1]
-        
-        if msg == "time":
-            msg = None
-        
-        cl.send("thanks\n")
-        # led_print("conn")
-        cl.close()
-    except OSError as e:
-        # if e.args[0] == EAGAIN:
-            # pass
-        pass
+	global msg
+	try:
+		cl, addr = s.accept()
+		bytes = cl.readline()
+		msg = bytes.decode('utf-8')[:-1]
+		
+		if msg == "time":
+			msg = None
+		
+		cl.send("thanks\n")
+		# led_print("conn")
+		cl.close()
+	except OSError as e:
+		# if e.args[0] == EAGAIN:
+			# pass
+		pass
 
 while True:
-    check_conn(0)
+	check_conn(0)
 
 # tmr2 = Timer(-1)
 # tmr2.init(period=100, mode=Timer.PERIODIC, callback=check_conn)
