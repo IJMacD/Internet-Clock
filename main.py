@@ -77,11 +77,7 @@ time.sleep(1)
 
 from machine import Timer
 
-# set up ntp refresh
-# tmr_t = Timer(-1)
-# tmr_t.init(period=30*60*1000, mode=Timer.PERIODIC, callback=lambda t: ntptime.settime())
-
-def print_time():
+def print_time(show_seconds=False):
 	utc = rtc.datetime()	# get the date and time in UTC
 
 	tz = 8
@@ -91,8 +87,22 @@ def print_time():
 	hours = (utc_hours + tz) % 24
 	minutes = utc[5]
 	seconds = utc[6]
-		
-	led_print('%02d%s%02d' % (hours,(":" if seconds%2 else " "),minutes))
+	
+	if show_seconds:
+		display.fill(0)
+		display.narrowtext('%02d:%02d:%02d' % (hours,minutes,seconds), 3, 1)
+		display.show()
+	else:
+		led_print('%02d%s%02d' % (hours,(":" if seconds%2 else " "),minutes))
+
+def print_date():
+	utc = rtc.datetime()	# get the date and time in UTC
+
+	year = utc[0]
+	month = utc[1]
+	day = utc[2]
+	
+	led_print('%04d%02d%02d' % (year,month,day))
 	
 def print_temp():
 	read_temp()
@@ -111,6 +121,10 @@ msg = "cycle"
 def update_display ():
 	if msg == None or msg == "time":
 		print_time()
+	elif msg == "times":
+		print_time(True)
+	elif msg == "date":
+		print_date()
 	elif msg == "temp":
 		print_temp()
 	elif msg == "humidity":
