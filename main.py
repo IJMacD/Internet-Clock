@@ -51,12 +51,22 @@ wlan = network.WLAN(network.STA_IF)
 while not wlan.isconnected():
 	time.sleep_ms(100)
 
-from machine import RTC
+led_print(wlan.ifconfig()[0][8:])
+time.sleep(2)
 
+from machine import RTC
 rtc = RTC()
 
 import ntptime
-ntptime.settime() # set the rtc datetime from the remote server
+ntpfail = 1
+
+while ntpfail:
+	try:
+		ntptime.settime() # set the rtc datetime from the remote server
+		ntpfail = 0
+	except:
+		led_print("T F{}".format(ntpfail))
+		ntpfail = ntpfail + 1
 
 led_print("T OK");
 
@@ -91,8 +101,7 @@ def print_pres():
 	read_temp()
 	led_print(pres)
 
-msg = None
-# count = 0
+msg = "cycle"
 
 def update_display (t):
 	if msg == None:
@@ -113,14 +122,12 @@ def update_display (t):
 			print_pres()
 	else:
 		led_print(msg)
-	
-	# count = count + 1
-	
-	# if count > 30 * 60:
-		# ntptime.settime()
 
 tmr = Timer(-1)
 tmr.init(period=1000, mode=Timer.PERIODIC, callback=update_display)
+
+tmr2 = Timer(-1)
+tmr2.init(period=3 * 60 * 60 * 1000, mode=Timer.PERIODIC, callback=lambda t: ntptime.settime())
 
 import socket
 addr = socket.getaddrinfo('0.0.0.0', 8000)[0][-1]
