@@ -25,7 +25,7 @@ SOFTWARE.
 """
 
 from micropython import const
-import framebuffernarrow
+from eframebuf import EnhancedFrameBuffer
 
 _NOOP = const(0)
 _DIGIT0 = const(1)
@@ -35,7 +35,7 @@ _SCANLIMIT = const(11)
 _SHUTDOWN = const(12)
 _DISPLAYTEST = const(15)
 
-class Matrix8x8(framebuffernarrow.FrameBufferNarrow):
+class Matrix8x8(EnhancedFrameBuffer):
 	def __init__(self, spi, cs, num):
 		"""
 		Driver for cascading MAX7219 8x8 LED matrices.
@@ -53,7 +53,7 @@ class Matrix8x8(framebuffernarrow.FrameBufferNarrow):
 		self.cs.init(cs.OUT, True)
 		self.buffer = bytearray(8 * num)
 		self.num = num
-		framebuffernarrow.FrameBufferNarrow.__init__(self, self.buffer, num * 8, 8)
+		EnhancedFrameBuffer.__init__(self, self.buffer, num * 8, 8)
 		self.init()
 
 	def _write(self, command, data):

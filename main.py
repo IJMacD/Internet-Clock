@@ -68,7 +68,12 @@ while ntpfail:
 		led_print("T F{}".format(ntpfail))
 		ntpfail = ntpfail + 1
 
-led_print("T OK");
+# led_print("T OK");
+display.fill(0)
+display.bitmap(bytearray([0x3C,0x52,0x91,0x91,0x91,0xA1,0x42,0x3C]), 0, 0, 8, 8)
+display.text("OK", 16, 0, 1)
+display.show()
+time.sleep(1)
 
 from machine import Timer
 
@@ -103,8 +108,8 @@ def print_pres():
 
 msg = "cycle"
 
-def update_display (t):
-	if msg == None:
+def update_display ():
+	if msg == None or msg == "time":
 		print_time()
 	elif msg == "temp":
 		print_temp()
@@ -120,11 +125,16 @@ def update_display (t):
 			print_temp()
 		else:
 			print_pres()
+	elif isinstance(msg, bytearray):
+		w = len(msg)
+		display.fill(0)
+		display.bitmap(msg,0,0,len(msg),8)
+		display.show()
 	else:
 		led_print(msg)
 
 tmr = Timer(-1)
-tmr.init(period=1000, mode=Timer.PERIODIC, callback=update_display)
+tmr.init(period=1000, mode=Timer.PERIODIC, callback=lambda t: update_display())
 
 tmr2 = Timer(-1)
 tmr2.init(period=3 * 60 * 60 * 1000, mode=Timer.PERIODIC, callback=lambda t: ntptime.settime())
@@ -143,12 +153,18 @@ def check_conn(t):
 		bytes = cl.readline()
 		msg = bytes.decode('utf-8')[:-1]
 		
-		if msg == "time":
-			msg = None
+		if msg[:7] == "bitmap ":
+			tail = msg[7:]
+			l = int(len(tail)/2)
+			msg = bytearray(l)
+			for i in range(l):
+				msg[i] = int(tail[i*2:i*2+2], 16)
 		
 		cl.send("thanks\n")
 		# led_print("conn")
 		cl.close()
+		
+		update_display()
 	except OSError as e:
 		# if e.args[0] == EAGAIN:
 			# pass
