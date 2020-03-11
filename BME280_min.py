@@ -171,7 +171,7 @@ class BME280:
 		t = self.read_temperature()
 		ti = t // 100
 		td = t - ti * 100
-		return "{}.{:02d}C".format(ti, td)
+		return "{}.{:02d}°C".format(ti, td)
 	@property
 	def pressure(self):
 		p = self.read_pressure() // 256

@@ -18,6 +18,9 @@ display = max7219.Matrix8x8(spi, Pin(5), 5)
 
 from BME280_min import BME280
 
+CLOCK_ICON = bytearray([0x3c,0x52,0x91,0x91,0x8d,0x81,0x42,0x3c])
+WIFI_ICON = bytearray([0xf0,0x08,0xe4,0x12,0xc9,0x25,0x15,0x95])
+
 gc.collect()
 
 # ESP8266 - Pin assignment
@@ -51,7 +54,10 @@ wlan = network.WLAN(network.STA_IF)
 while not wlan.isconnected():
 	time.sleep_ms(100)
 
-led_print(wlan.ifconfig()[0][8:])
+display.fill(0)
+display.bitmap(WIFI_ICON,0,0,8,8)
+display.narrowtext(wlan.ifconfig()[0][8:], 10, 1)
+display.show()
 time.sleep(2)
 
 from machine import RTC
@@ -70,7 +76,7 @@ while ntpfail:
 
 # led_print("T OK");
 display.fill(0)
-display.bitmap(bytearray([0x3C,0x52,0x91,0x91,0x91,0xA1,0x42,0x3C]), 0, 0, 8, 8)
+display.bitmap(CLOCK_ICON, 0, 0, 8, 8)
 display.text("OK", 16, 0, 1)
 display.show()
 time.sleep(1)
