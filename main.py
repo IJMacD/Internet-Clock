@@ -16,10 +16,17 @@ gc.collect()
 spi = SPI(-1, baudrate=100000, polarity=1, phase=0, sck=Pin(2), mosi=Pin(4), miso=Pin(16))
 display = max7219.Matrix8x8(spi, Pin(5), 5)
 
+gc.collect()
+
 from BME280_min import BME280
 
 CLOCK_ICON = bytearray([0x3c,0x52,0x91,0x91,0x8d,0x81,0x42,0x3c])
 WIFI_ICON = bytearray([0xf0,0x08,0xe4,0x12,0xc9,0x25,0x15,0x95])
+TRAIN_ICON = bytearray([0x08,0x04,0xE0,0xA4,0xBE,0x82,0xFE,0x24])
+SOLAR_ICON = bytearray([0x00,0xFC,0xAA,0xAA,0x7E,0x55,0x55,0x3F])
+BATT_ICON = bytearray([0x18,0x7E,0x42,0x4A,0x5A,0x52,0x42,0x7E])
+PLUG_ICON = bytearray([0x00,0x00,0x06,0x0B,0x72,0xCB,0x06,0x00])
+BOLT_ICON = bytearray([0x00,0x04,0x08,0x10,0x3C,0x08,0x10,0x20])
 
 gc.collect()
 
@@ -41,10 +48,20 @@ display.brightness(0)
 
 def led_print(msg, narrow=False):
 	display.fill(0)
-	if len(msg) > 5 or narrow:
-		display.narrowtext(msg, 0, 1)
+	if msg is not None:
+		if len(msg) > 5 or narrow:
+			display.narrowtext(msg, 0, 1)
+		else:
+			display.text(msg,0,0,1)
+	display.show()
+
+def led_iconprint(icon, msg, narrow=False):
+	display.fill(0)
+	display.bitmap(icon, 0, 0, 8, 8)
+	if len(msg) > 4 or narrow:
+		display.narrowtext(msg, 9, 1)
 	else:
-		display.text(msg,0,0,1)
+		display.text(msg,9,0,1)
 	display.show()
 
 led_print("Hello")
@@ -54,10 +71,7 @@ wlan = network.WLAN(network.STA_IF)
 while not wlan.isconnected():
 	time.sleep_ms(100)
 
-display.fill(0)
-display.bitmap(WIFI_ICON,0,0,8,8)
-display.narrowtext(wlan.ifconfig()[0][8:], 10, 1)
-display.show()
+led_iconprint(WIFI_ICON, wlan.ifconfig()[0][8:])
 time.sleep(2)
 
 from machine import RTC
@@ -122,9 +136,14 @@ def print_pres():
 	read_temp()
 	led_print(pres)
 
+from solar import read_solar 
+from stock import read_stock
+
 msg = "cycle"
+train_pos = -8
 
 def update_display ():
+	global msg, train_pos
 	if msg == None or msg == "time":
 		print_time()
 	elif msg == "times":
@@ -145,6 +164,33 @@ def update_display ():
 			print_temp()
 		else:
 			print_pres()
+	elif msg == "train":
+		display.fill(0)
+		display.bitmap(TRAIN_ICON,train_pos, 0, 8, 8)
+		display.show()
+		train_pos = train_pos + 1
+		if train_pos > 40:
+			msg = "cycle"
+			train_pos = -8
+	elif msg == "solar panel":
+		data = read_solar()
+		led_iconprint(SOLAR_ICON, str(data[1]))
+		# pass
+	elif msg == "solar current":
+		data = read_solar()
+		led_iconprint(BOLT_ICON, str(data[2]))
+		# pass
+	elif msg == "solar battery":
+		data = read_solar()
+		led_iconprint(BATT_ICON, str(data[3]))
+		# pass
+	elif msg == "solar power":
+		data = read_solar()
+		led_iconprint(PLUG_ICON, str(float(data[1]) * float(data[2])))
+		# pass
+	elif msg[0:5] == "stock":
+		value = read_stock(msg[6:])
+		led_print(value)
 	elif isinstance(msg, bytearray):
 		w = len(msg)
 		display.fill(0)
@@ -166,7 +212,7 @@ s.bind(addr)
 s.listen(1)
 # s.settimeout(0.1)
 
-def check_conn(t):
+def check_conn():
 	global msg
 	try:
 		cl, addr = s.accept()
@@ -189,9 +235,17 @@ def check_conn(t):
 		# if e.args[0] == EAGAIN:
 			# pass
 		pass
+		
+	# mem0 = gc.mem_alloc()
+	# gc.collect()
+	# mem1 = gc.mem_alloc()
+	# mem_free = gc.mem_free()
+	
+	# print("Used: %d, Free: %d, Freed: %d" % (mem1, mem_free, mem0 - mem1))
+		
 
 while True:
-	check_conn(0)
+	check_conn()
 
 # tmr2 = Timer(-1)
 # tmr2.init(period=100, mode=Timer.PERIODIC, callback=check_conn)
